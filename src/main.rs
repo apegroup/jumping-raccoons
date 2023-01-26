@@ -1,10 +1,13 @@
 #[macro_use]
 extern crate rouille;
 
+use std::io::Read;
 use std::thread;
+use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 
-use rouille::websocket;
-use rouille::Response;
+use rouille::{Request, Response, ResponseBody, websocket};
 
 fn main() {
     // This example demonstrates how to use websockets with rouille.
@@ -17,14 +20,6 @@ fn main() {
     rouille::start_server("localhost:8000", move |request| {
         router!(request,
             (GET) (/) => {
-                println!("URL --> {:?}", request.url());
-
-                let filename = request.get_param("filename");
-                let requestid = request.get_param("requestid");
-
-                println!("requestid --> {:?}", requestid);
-                println!("filename --> {:?}", filename);
-
                 // The / route outputs an HTML client so that the user can try the websockets.
                 // Note that in a real website you should probably use some templating system, or
                 // at least load the HTML from a file.
@@ -48,6 +43,32 @@ fn main() {
                     <p id=\"result\"></p>")
             },
 
+            (POST) (/) => {
+                                println!("URL --> {:?}", request.url());
+
+                let filename = request.get_param("filename");
+                let requestid = request.get_param("requestid");
+
+                println!("requestid --> {:?}", requestid);
+                println!("filename --> {:?}", filename);
+
+                let mut data = request.data().expect("Oops, body already retrieved, problem \
+                                          in the server");
+
+                let mut buf = Vec::new();
+                match data.read_to_end(&mut buf) {
+                    Ok(n) => {
+                        println!("buf --> {:?}", n);
+                          // let mut out = File::create("image.jpg")?;
+                            // write!(out,n)?;
+                    },
+                    Err(_) => return Response::text("Failed to read body")
+                };
+
+
+
+                Response::text("download")
+            },
             (GET) (/download) => {
                 Response::text("download")
             },
