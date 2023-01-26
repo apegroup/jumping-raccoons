@@ -4,6 +4,7 @@ extern crate rouille;
 use std::io::Read;
 use std::thread;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Mutex;
 use tokio::time::Instant;
 
@@ -11,7 +12,7 @@ use lazy_static::lazy_static;
 use rouille::{Response, websocket};
 
 lazy_static! {
-    static ref MAP: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+    static ref MAP: Mutex<HashMap<String, Vec<u8>>> = Mutex::new(HashMap::new());
 }
 
 fn main() {
@@ -52,7 +53,10 @@ fn main() {
                                 println!("URL --> {:?}", request.url());
 
                 let filename = request.get_param("filename");
-                let requestid = request.get_param("requestid");
+                let requestid = match request.get_param("requestid") {
+                    Some(x) => { x }
+                    None => { return Response::text("nope"); }
+                };
 
                 println!("requestid --> {:?}", requestid);
                 println!("filename --> {:?}", filename);
@@ -66,6 +70,7 @@ fn main() {
                         println!("buf --> {:?}", n);
                           // let mut out = File::create("image.jpg")?;
                             // write!(out,n)?;
+                        MAP.lock().unwrap().insert(requestid, buf);
                     },
                     Err(_) => return Response::text("Failed to read body")
                 };
@@ -87,7 +92,8 @@ fn main() {
                     match map.get(id) {
                         None => { continue; }
                         Some(x) => {
-                            break Response::text(format!("GET OK {}", x))
+                            // break Response::text(format!("GET OK {}", x))
+                            break Response::from_data("application/octet-stream", x.deref());
                         }
                     }
                 }
