@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate rouille;
 
-use std::io::Read;
+// use std::io::Read;
 use std::thread;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -10,6 +10,9 @@ use tokio::time::Instant;
 
 use lazy_static::lazy_static;
 use rouille::{Response, websocket};
+
+const ZAPIER_URL: &'static str = "https://hooks.zapier.com/hooks/catch/128523/bvffe6n/";
+const CALLBACK_URL: &'static str = "https://4fcf-85-30-130-74.eu.ngrok.io/";
 
 lazy_static! {
     static ref MAP: Mutex<HashMap<String, Vec<u8>>> = Mutex::new(HashMap::new());
@@ -52,28 +55,49 @@ fn main() {
             (POST) (/) => {
                                 println!("URL --> {:?}", request.url());
 
-                let filename = request.get_param("filename");
-                let requestid = match request.get_param("requestid") {
-                    Some(x) => { x }
-                    None => { return Response::text("nope"); }
-                };
 
-                println!("requestid --> {:?}", requestid);
-                println!("filename --> {:?}", filename);
 
-                let mut data = request.data().expect("Oops, body already retrieved, problem \
-                                          in the server");
 
-                let mut buf = Vec::new();
-                match data.read_to_end(&mut buf) {
-                    Ok(n) => {
-                        println!("buf --> {:?}", n);
-                          // let mut out = File::create("image.jpg")?;
-                            // write!(out,n)?;
-                        MAP.lock().unwrap().insert(requestid, buf);
-                    },
-                    Err(_) => return Response::text("Failed to read body")
-                };
+                let data = try_or_400!(post_input!(request, {
+                        // txt: String,
+                        // data: String,
+                        file: Vec<rouille::input::post::BufferedFile>,
+                    }));
+
+                // We just print what was received on stdout. Of course in a real application
+                // you probably want to process the data, eg. store it in a database.
+                println!("Received data: {:?}", data);
+                let reqid = request.header("Requestid").unwrap();
+
+
+
+                let d = &data.file.get(0).unwrap().data;
+                MAP.lock().unwrap().insert(reqid.to_string(), d.to_vec());
+
+                // let filename = request.get_param("filename");
+                // // let requestid = match request.get_param("requestid") {
+                // //     Some(x) => { x }
+                // //     None => { return Response::text("nope"); }
+                // // };
+                // let requestid = request.get_param("requestid");
+                //
+                println!("POST /: {:#?}", request);
+                // println!("requestid --> {:?}", requestid);
+                // println!("filename --> {:?}", filename);
+                //
+                // let mut data = request.data().expect("Oops, body already retrieved, problem \
+                //                           in the server");
+                //
+                // let mut buf = Vec::new();
+                // match data.read_to_end(&mut buf) {
+                //     Ok(n) => {
+                //         println!("buf --> {:?}", n);
+                //           // let mut out = File::create("image.jpg")?;
+                //             // write!(out,n)?;
+                //         // MAP.lock().unwrap().insert(requestid, buf);
+                //     },
+                //     Err(_) => return Response::text("Failed to read body")
+                // };
 
 
 
@@ -82,7 +106,22 @@ fn main() {
             (GET) (/download) => {
                 let start = Instant::now();
                 let id = &uuid::Uuid::new_v4().to_string();
-                // todo: call zapier
+                println!("GET /download request id: {}", id);
+
+                // https://hooks.zapier.com/hooks/catch/128523/bvffe6n/?filename=edde&requestid=0185eede&callback=https%3A%2F%2F2804-85-30-130-74.eu.ngrok.io
+                let client = reqwest::blocking::Client::new();
+                let req = client.get(ZAPIER_URL)
+                    .query(&[
+                    ("requestid", id),
+                    ("filename", &request.get_param("name").unwrap()),
+                    ("callback", &String::from(CALLBACK_URL)),
+                ]);
+
+                match req.send() {
+                    Err(_) => { println!("fail") }
+                    Ok(_) => { println!("success") }
+                };
+
                 loop {
                     let d = start.elapsed();
                     if d.as_secs() > 20 {
