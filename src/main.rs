@@ -3,11 +3,16 @@ extern crate rouille;
 
 use std::io::Read;
 use std::thread;
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tokio::time::Instant;
 
-use rouille::{Request, Response, ResponseBody, websocket};
+use lazy_static::lazy_static;
+use rouille::{Response, websocket};
+
+lazy_static! {
+    static ref MAP: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
 
 fn main() {
     // This example demonstrates how to use websockets with rouille.
@@ -70,7 +75,22 @@ fn main() {
                 Response::text("download")
             },
             (GET) (/download) => {
-                Response::text("download")
+                let start = Instant::now();
+                let id = &uuid::Uuid::new_v4().to_string();
+                // todo: call zapier
+                loop {
+                    let d = start.elapsed();
+                    if d.as_secs() > 20 {
+                        break Response::text("timed out after 20 secs")
+                    }
+                    let map = MAP.lock().unwrap();
+                    match map.get(id) {
+                        None => { continue; }
+                        Some(x) => {
+                            break Response::text(format!("GET OK {}", x))
+                        }
+                    }
+                }
             },
             (GET) (/ws) => {
                 // This is the websockets route.

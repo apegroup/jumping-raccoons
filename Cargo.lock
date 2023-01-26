@@ -299,6 +299,7 @@ name = "employee-images"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "lazy_static",
  "rouille",
  "serde 1.0.152",
  "serde_json",
