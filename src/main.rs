@@ -19,6 +19,12 @@ fn main() {
             (GET) (/) => {
                 println!("URL --> {:?}", request.url());
 
+                let filename = request.get_param("filename");
+                let requestid = request.get_param("requestid");
+
+                println!("requestid --> {:?}", requestid);
+                println!("filename --> {:?}", filename);
+
                 // The / route outputs an HTML client so that the user can try the websockets.
                 // Note that in a real website you should probably use some templating system, or
                 // at least load the HTML from a file.
@@ -42,6 +48,9 @@ fn main() {
                     <p id=\"result\"></p>")
             },
 
+            (GET) (/download) => {
+                Response::text("download")
+            },
             (GET) (/ws) => {
                 // This is the websockets route.
 
